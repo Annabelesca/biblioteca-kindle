@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mi biblioteca Kindle</title>
+<style>
+:root{--navy:#263b5a;--band:#eef3f8;--text:#1f2937;--muted:#6b7280;--line:#d0d7e2}
+*{box-sizing:border-box}
+body{margin:0;font-family:Calibri,"Segoe UI",Arial,sans-serif;color:var(--text);background:#f6f8fb}
+header{background:var(--navy);color:#fff;padding:18px 20px}
+header h1{margin:0;font-size:1.5rem}
+header p{margin:4px 0 0;opacity:.8;font-size:.9rem}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.tabs{display:flex;gap:8px;margin-bottom:12px}
+.tab{padding:8px 16px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;font:inherit;color:var(--text)}
+.tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.controls input,.controls select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+.controls input{flex:1 1 220px}
+.stats{color:var(--muted);font-size:.9rem;margin:6px 0 10px}
+.wrap{overflow-x:auto;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+table{width:100%;border-collapse:collapse;background:#fff}
+th{background:var(--navy);color:#fff;text-align:left;padding:10px;font-size:.9rem;white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid #eceff4;font-size:.92rem;vertical-align:top}
+tbody tr:nth-child(even) td{background:var(--band)}
+.sub{display:block;color:var(--muted);font-size:.8rem;margin-top:2px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.78rem;font-weight:600;white-space:nowrap}
+.t-Manga{background:#f8d7e8;color:#7a1f4d}
+.t-Novela-ligera{background:#ddebf7;color:#1f4e79}
+.t-Novela{background:#e2f0d9;color:#375623}
+.s-Completa{background:#c6efce;color:#006100}
+.s-Incompleta{background:#ffeb9c;color:#9c5700}
+.s-Por-determinar{background:#e7e6e6;color:#595959}
+.bar{height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;min-width:90px;margin-top:4px}
+.bar span{display:block;height:100%;background:#2e7d32}
+.center{text-align:center}
+.msg{padding:18px;background:#fff;border:1px dashed var(--line);border-radius:10px;color:var(--muted);line-height:1.5}
+@media (max-width:640px){th,td{font-size:.85rem;padding:7px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mi biblioteca Kindle</h1>
+  <p>Libros, series y tomos</p>
+</header>
+<main>
+  <div class="tabs">
+    <button class="tab active" data-tab="libros">Libros</button>
+    <button class="tab" data-tab="series">Series</button>
+  </div>
+  <div id="app"><div class="msg">Cargando…</div></div>
+</main>
+
+<script>
+// ====== CONFIGURACIÓN ======
+// ID de tu Google Sheet: es la parte larga de la URL entre /d/ y /edit
+const SHEET_ID = '1eK7DJjNVCIC_538TUAvpG9rdkF4isqWImC9mb41D9EM';
+const SHEETS = { libros: 'Biblioteca', series: 'Series y colecciones' };
+// ===========================
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cssName = s => String(s).replace(/\s+/g, '-');
+
+// Parser CSV que respeta comillas y comas dentro de los campos
+function parseCSV(text) {
+  const rows = []; let row = [], field = '', i = 0, quoted = false;
+  while (i < text.length) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else quoted = false; }
+      else field += c;
+    } else if (c === '"') quoted = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+    else if (c !== '\r') field += c;
+    i++;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim() !== ''));
+}
+
+async function loadSheet(name) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`No se pudo leer la hoja "${name}" (código ${res.status}).`);
+  const [head, ...body] = parseCSV(await res.text());
+  return body.map(r => Object.fromEntries(head.map((h, i) => [h.trim(), (r[i] ?? '').trim()])));
+}
+
+const state = { libros: { q: '', tipo: '', idioma: '' }, series: { q: '', estado: '' } };
+const data = {};
+const app = document.getElementById('app');
+let current = 'libros';
+
+function options(list, key) {
+  return [...new Set(list.map(r => r[key]).filter(Boolean))].sort()
+    .map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+}
+
+function renderLibros() {
+  const s = state.libros, rows = data.libros;
+  const q = s.q.toLowerCase();
+  const list = rows.filter(r =>
+    (!q || [r['Título'], r['Autor'], r['Serie / colección']].join(' ').toLowerCase().includes(q)) &&
+    (!s.tipo || r['Tipo de libro'] === s.tipo) &&
+    (!s.idioma || r['Idioma'] === s.idioma));
+  app.innerHTML = `
+    <div class="controls">
+      <input id="q" placeholder="Buscar título, autor o serie…" value="${esc(s.q)}">
+      <select id="tipo"><option value="">Todos los tipos</option>${options(rows, 'Tipo de libro')}</select>
+      <select id="idioma"><option value="">Todos los idiomas</option>${options(rows, 'Idioma')}</select>
+    </div>
+    <div class="stats">${list.length} de ${rows.length} libros</div>
+    <div class="wrap"><table>
+      <thead><tr><th>Título</th><th>Autor</th><th>Tipo</th><th>Serie</th><th class="center">Vol.</th><th>Idioma</th></tr></thead>
+      <tbody>${list.map(r => `
+        <tr>
+          <td>${esc(r['Título'])}</td>
+          <td>${esc(r['Autor'])}</td>
+          <td><span class="badge t-${cssName(r['Tipo de libro'])}">${esc(r['Tipo de libro'])}</span></td>
+          <td>${esc(r['Serie / colección'])}</td>
+          <td class="center">${esc(r['Volumen'])}</td>
+          <td>${esc(r['Idioma'])}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+  bind('q', 'q'); bind('tipo', 'tipo'); bind('idioma', 'idioma', 'libros');
+}
+
+function renderSeries() {
+  const s = state.series, rows = data.series;
+  const q = s.q.toLowerCase();
+  const list = rows.filter(r =>
+    (!q || [r['Serie / colección'], r['Relacionado']].join(' ').toLowerCase().includes(q)) &&
+    (!s.estado || r['Estado'] === s.estado));
+  app.innerHTML = `
+    <div class="controls">
+      <input id="q" placeholder="Buscar serie…" value="${esc(s.q)}">
+      <select id="estado"><option value="">Todos los estados</option>
+        <option ${s.estado==='Completa'?'selected':''}>Completa</option>
+        <option ${s.estado==='Incompleta'?'selected':''}>Incompleta</option>
+        <option ${s.estado==='Por determinar'?'selected':''}>Por determinar</option>
+      </select>
+    </div>
+    <div class="stats">${list.length} de ${rows.length} series</div>
+    <div class="wrap"><table>
+      <thead><tr><th>Serie</th><th class="center">Tengo</th><th class="center">Total</th><th class="center">Me faltan</th><th>Estado</th></tr></thead>
+      <tbody>${list.map(r => {
+        const tengo = r['Volúmenes que tengo'] ? r['Volúmenes que tengo'].split(',').length : 0;
+        const total = parseInt(r['Total de volúmenes'], 10);
+        const pct = total > 0 ? Math.min(100, Math.round(tengo / total * 100)) : 0;
+        return `
+        <tr>
+          <td>${esc(r['Serie / colección'])}${r['Relacionado'] ? `<span class="sub">${esc(r['Relacionado'])}</span>` : ''}</td>
+          <td class="center">${esc(r['Volúmenes que tengo'] || '—')}</td>
+          <td class="center">${esc(r['Total de volúmenes'] || '—')}
+            ${total > 0 ? `<div class="bar"><span style="width:${pct}%"></span></div>` : ''}</td>
+          <td class="center">${esc(r['Me faltan'] || '—')}</td>
+          <td><span class="badge s-${cssName(r['Estado'])}">${esc(r['Estado'])}</span></td>
+        </tr>`; }).join('')}
+      </tbody>
+    </table></div>`;
+  bind('q', 'q'); bind('estado', 'estado', 'series');
+}
+
+// Enlaza los controles con el estado y vuelve a pintar
+function bind(id, key, tab = current) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener(el.tagName === 'INPUT' ? 'input' : 'change', e => {
+    state[tab][key] = e.target.value;
+    render();
+    const again = document.getElementById(id);
+    if (again) { again.focus(); const v = again.value; again.value = ''; again.value = v; }
+  });
+}
+
+function render() {
+  if (!data[current]) return;
+  current === 'libros' ? renderLibros() : renderSeries();
+}
+
+document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b === btn));
+  current = btn.dataset.tab;
+  render();
+}));
+
+(async () => {
+  if (!SHEET_ID || SHEET_ID.startsWith('PEGA_AQUI')) {
+    app.innerHTML = '<div class="msg">Falta configurar <b>SHEET_ID</b> en index.html con el ID de tu Google Sheet.</div>';
+    return;
+  }
+  try {
+    data.libros = (await loadSheet(SHEETS.libros)).filter(r => r['Título']);
+    data.series = (await loadSheet(SHEETS.series)).filter(r => r['Estado']);
+    render();
+  } catch (err) {
+    app.innerHTML = `<div class="msg">${esc(err.message)}<br>Revisa que la hoja esté compartida con "Cualquier persona con el enlace".</div>`;
+  }
+})();
+</script>
+</body>
+</html>
