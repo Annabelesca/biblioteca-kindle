@@ -28,7 +28,10 @@ function renderBiblioteca(contenedor, libros, tipo, filtro, onChange) {
       <thead><tr><th>Título</th><th>Autor</th><th>Serie</th><th class="center">Vol.</th><th>Idioma</th></tr></thead>
       <tbody>${lista.map(r => `
         <tr>
-          <td>${esc(r['Título'])}</td>
+          <td><button class="link-libro" data-portada
+                data-isbn="${esc(r['ISBN'])}"
+                data-titulo="${esc(r['Título'])}"
+                data-autor="${esc(r['Autor'])}">${esc(r['Título'])}</button></td>
           <td>${esc(r['Autor'])}</td>
           <td>${esc(r['Serie / colección'])}</td>
           <td class="center">${esc(r['Volumen'])}</td>

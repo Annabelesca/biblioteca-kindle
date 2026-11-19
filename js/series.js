@@ -14,6 +14,13 @@ function tipoDeSerie(nombre, libros) {
   return mejor;
 }
 
+// ISBN del primer tomo de una serie (el de menor número con ISBN)
+function isbnPrimerTomo(nombre, libros) {
+  const candidatos = libros.filter(r => r['Serie / colección'] === nombre && isbnLimpio(r['ISBN']));
+  candidatos.sort((a, b) => (parseFloat(a['Volumen']) || 999) - (parseFloat(b['Volumen']) || 999));
+  return candidatos.length ? candidatos[0]['ISBN'] : '';
+}
+
 // Devuelve las series del tipo indicado que pasan los filtros de búsqueda y estado
 function filtrarSeries(series, libros, tipo, filtro) {
   const q = (filtro.q || '').toLowerCase();
@@ -42,12 +49,17 @@ function renderColecciones(contenedor, series, libros, tipo, filtro, onChange) {
     <div class="wrap"><table>
       <thead><tr><th>Serie</th><th class="center">Tengo</th><th class="center">Total</th><th class="center">Me faltan</th><th>Estado</th></tr></thead>
       <tbody>${lista.map(r => {
+        const nombre = r['Serie / colección'];
+        const isbn1 = isbnPrimerTomo(nombre, libros);
         const tengo = r['Volúmenes que tengo'] ? r['Volúmenes que tengo'].split(',').length : 0;
         const total = parseInt(r['Total de volúmenes'], 10);
         const pct = total > 0 ? Math.min(100, Math.round(tengo / total * 100)) : 0;
+        const miniatura = isbn1
+          ? `<button class="link-portada" data-portada data-isbn="${esc(isbn1)}" data-titulo="${esc(nombre)}" data-autor="">${imgPortada(isbn1, nombre)}</button>`
+          : '';
         return `
         <tr>
-          <td>${esc(r['Serie / colección'])}${r['Relacionado'] ? `<span class="sub">${esc(r['Relacionado'])}</span>` : ''}</td>
+          <td><div class="celda-serie">${miniatura}<div>${esc(nombre)}${r['Relacionado'] ? `<span class="sub">${esc(r['Relacionado'])}</span>` : ''}</div></div></td>
           <td class="center">${esc(r['Volúmenes que tengo'] || '—')}</td>
           <td class="center">${esc(r['Total de volúmenes'] || '—')}
             ${total > 0 ? `<div class="bar"><span style="width:${pct}%"></span></div>` : ''}</td>

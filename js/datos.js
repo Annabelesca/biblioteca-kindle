@@ -28,7 +28,7 @@ function parseCSV(text) {
 }
 
 // Orden de las columnas de la pestaña Biblioteca (se usa si el encabezado no se lee bien)
-const COLUMNAS_LIBROS = ['Título', 'Autor', 'Tipo de libro', 'Serie / colección', 'Volumen', 'Idioma'];
+const COLUMNAS_LIBROS = ['Título', 'Autor', 'Tipo de libro', 'Serie / colección', 'Volumen', 'Idioma', 'ISBN'];
 
 // Lee una pestaña de la hoja y devuelve una lista de objetos.
 // Si se pasan columnasEsperadas y la primera fila no tiene el primer encabezado,

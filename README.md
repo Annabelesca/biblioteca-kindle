@@ -13,6 +13,7 @@ biblioteca-kindle/
 │   └── styles.css      Estilos
 ├── js/
 │   ├── datos.js        Configuración (ID de la hoja) y lectura de Google Sheets
+│   ├── portadas.js     Portadas (Open Library, a partir del ISBN) y popup
 │   ├── libros.js       Vista Biblioteca
 │   ├── series.js       Vista Colecciones
 │   └── app.js          Pestañas y arranque de la web
@@ -31,6 +32,12 @@ La página lee dos pestañas de la hoja de Google:
 Las columnas "Volúmenes que tengo", "Me faltan" y "Estado" se calculan con fórmulas dentro de la hoja, así que no hay que tocarlas. Para una serie solo hay que rellenar la columna "Total de volúmenes".
 
 Cada serie se asigna a una sección según el tipo de sus libros en la pestaña Biblioteca. Si una serie tiene libros de varios tipos, aparece en el que más se repite. Una serie que no tenga libros registrados no aparece en ninguna colección.
+
+## Portadas
+
+- En **Biblioteca**, al pulsar el título de un libro se abre un popup con su portada.
+- En **Colecciones**, cada serie muestra la portada de su primer tomo (el de menor número con ISBN).
+- Las portadas no se guardan en el proyecto: se piden a Open Library usando el ISBN de la columna "ISBN". Si un libro no tiene ISBN o Open Library no tiene su portada, se muestra "Sin portada disponible".
 
 ## Configuración
 
@@ -54,6 +61,7 @@ Recuerda subir también las carpetas `css/` y `js/`. Si faltan, la página se ve
 - **"No se pudo leer la hoja ... (código 404)"**: el ID de `SHEET_ID` no es correcto o la hoja ha sido eliminada.
 - **"No encuentro libros en la pestaña ..."**: el mensaje muestra las columnas que ha leído. Comprueba que la primera fila de la pestaña Biblioteca tenga "Título" y que el nombre de la pestaña coincida con `SHEETS`.
 - **La pestaña Biblioteca sale vacía o con el primer libro raro**: la primera fila de la hoja no se está leyendo como encabezado (por ejemplo, el título "Título" está pegado a otros datos). La web lee las columnas por posición en ese caso, así que revisa que la hoja tenga los encabezados en la primera fila, sin celdas combinadas ni saltos de línea.
+- **Una portada no aparece**: revisa que la columna "ISBN" tenga el número correcto (sin guiones ni espacios extra) y que la edición exista en Open Library.
 - **Una serie no aparece en Colecciones**: revisa que el nombre de la serie en la pestaña Biblioteca coincida exactamente con el de la pestaña Series y colecciones, y que ese libro tenga el tipo correcto.
 
 ## Privacidad
