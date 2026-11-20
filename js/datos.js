@@ -1,6 +1,6 @@
 // ====== CONFIGURACIÓN ======
 // ID de tu Google Sheet: la parte larga de la URL entre /d/ y /edit
-const SHEET_ID = '1eK7DJjNVCIC_538TUAvpG9rdkF4isqWImC9mb41D9EM';
+const SHEET_ID = '1z_Eyk3lfgLKS9aWI1RR-Y1YDCyXkyd0v';
 // Nombres exactos de las pestañas de la hoja
 const SHEETS = { libros: 'Biblioteca', series: 'Series y colecciones' };
 // ===========================
